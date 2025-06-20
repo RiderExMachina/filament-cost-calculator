@@ -1,4 +1,5 @@
 ## Filament Cost Calculator
+![Screenshot_20250620_021926](https://github.com/user-attachments/assets/d9bc33df-0d32-441e-b03f-9c914bda7691)
 
 This project scratches two itches. First, I wanted to know how much each of my prints cost in both time and filament, and second, I've been meaning to learn more about PyQt. Thus, this project was born.
 
