@@ -1,6 +1,6 @@
 import sys
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QApplication, QMainWindow, QLabel, QComboBox, QLineEdit, QCheckBox, QPushButton, QVBoxLayout, QHBoxLayout, QWidget
+from PyQt6.QtWidgets import QApplication, QMainWindow, QLabel, QComboBox, QLineEdit, QCheckBox, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QFormLayout
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -10,10 +10,7 @@ class MainWindow(QMainWindow):
         widget = QWidget()
 
         layout = QVBoxLayout()
-        filament = QHBoxLayout()
-        p_weight = QHBoxLayout()
-        p_time = QHBoxLayout()
-        options = QHBoxLayout()
+        form = QFormLayout()
 
         self.banner = QLabel()
         banner_font = self.banner.font()
@@ -26,31 +23,27 @@ class MainWindow(QMainWindow):
         self.filament_cost_entry.addItems({"17.99":[17.99], "13.99": [13.99]})
         self.ppkilo = 17.99
         self.filament_cost_entry.currentTextChanged.connect(self.filament_cost)
-        filament.addWidget(filament_cost_label)
-        filament.addWidget(self.filament_cost_entry)
+        form.addRow(filament_cost_label, self.filament_cost_entry)
 
-        print_weight_label = QLabel("Grams used in print:")
+        print_weight_label = QLabel("&Grams used in print:")
         self.print_weight_entry = QLineEdit()
-        p_weight.addWidget(print_weight_label)
-        p_weight.addWidget(self.print_weight_entry)
+        print_weight_label.setBuddy(self.print_weight_entry)
+        form.addRow(print_weight_label, self.print_weight_entry)
 
-        print_time_label = QLabel("Time to print:")
+        print_time_label = QLabel("&Time to print:")
         self.print_time_entry = QLineEdit()
-        p_time.addWidget(print_time_label)
-        p_time.addWidget(self.print_time_entry)
+        print_time_label.setBuddy(self.print_time_entry)
+        form.addRow(print_time_label, self.print_time_entry)
 
-        on_time_label = QLabel("Printed at work/sleep")
+        on_time_label = QLabel("Printed at work/sleep (&F)")
         self.on_time = QCheckBox()
-        options.addWidget(on_time_label)
-        options.addWidget(self.on_time)
+        on_time_label.setBuddy(self.on_time)
+        form.addRow(on_time_label, self.on_time)
 
         calculate_button = QPushButton("Calculate")
         calculate_button.clicked.connect(self.calculate_options)
 
-        layout.addLayout(filament)
-        layout.addLayout(p_weight)
-        layout.addLayout(p_time)
-        layout.addLayout(options)
+        layout.addLayout(form)
         layout.addWidget(self.banner)
 
         layout.addWidget(calculate_button)
@@ -77,7 +70,11 @@ class MainWindow(QMainWindow):
                 pphour = 2
             if "h" in ttprint:
                 hours = int(ttprint.split("h")[0]) * 60
-                minutes = int(ttprint.split("h")[1].replace("m", ""))
+                minutes = ttprint.split("h")[1].replace("m", "")
+                if minutes != "":
+                    minutes = int(minutes)
+                else:
+                    minutes = 0
                 ttprint = hours + minutes
             else:
                 ttprint = int(ttprint.replace("m", ""))
