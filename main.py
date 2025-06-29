@@ -1,6 +1,41 @@
-import sys
+import os, sys
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QApplication, QMainWindow, QLabel, QComboBox, QLineEdit, QCheckBox, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QFormLayout
+from PyQt6.QtGui import QAction, QIcon, QKeySequence
+from PyQt6.QtWidgets import QApplication, QMainWindow, QDialog, QLabel, QComboBox, QTextEdit, QLineEdit, QCheckBox, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QFormLayout, QToolBar, QTableView
+
+class SettingsWindow(QDialog):
+    def __init__(self):
+        super().__init__()
+
+        layout = QVBoxLayout()
+        price_form = QFormLayout()
+        hourly_cost_form = QFormLayout()
+        btn_box = QHBoxLayout()
+
+        price_label = QLabel("&Prices per Kilo:")
+        self.price_list = QTextEdit()
+        price_label.setBuddy(self.price_list)
+        price_form.addRow(price_label, self.price_list)
+
+        pcph_label = QLabel("&Premium Cost")
+        self.pcph_entry = QLineEdit()
+        pcph_label.setBuddy(self.pcph_entry)
+
+        ocph_label = QLabel("&Offtime Cost")
+        self.ocph_entry = QLineEdit()
+        ocph_label.setBuddy(self.ocph_entry)
+
+        hourly_cost_form.addRow(pcph_label, self.pcph_entry)
+        hourly_cost_form.addRow(ocph_label, self.ocph_entry)
+
+        save_button = QPushButton("Save")
+        btn_box.addWidget(save_button)
+
+        layout.addLayout(price_form)
+        layout.addLayout(hourly_cost_form)
+        layout.addLayout(btn_box)
+
+        self.setLayout(layout)
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -51,19 +86,37 @@ class MainWindow(QMainWindow):
         widget.setLayout(layout)
         self.setCentralWidget(widget)
 
+        toolbar = QToolBar("Settings Toolbar")
+        self.addToolBar(toolbar)
+
+        settings_button = QAction("Settings", self)
+        settings_button.setStatusTip("Manage Settings")
+        settings_button.triggered.connect(self.show_settings)
+        toolbar.addAction(settings_button)
+
+    def show_settings(self):
+        dlg = SettingsWindow().exec()
+
     def filament_cost(self, cost):
         self.ppkilo = float(cost)
         print(f"Set price: {cost} per kg ({ float(cost) / 1000 } per g)")
 
     def calculate_options(self):
-        wtprint = int(self.print_weight_entry.text())
+        good = False
+        wtprint = self.print_weight_entry.text()
         ttprint = self.print_time_entry.text()
         if wtprint == "":
+            self.banner.setText("Needs Weight!")
             print("Needs Weight!")
         if ttprint == "":
+            self.banner.setText("Needs Time!")
             print("Needs Time!")
+            good = False
+        elif ttprint != "" and wtprint != "":
+            wtprint = float(wtprint)
+            good = True
 
-        else:
+        if good:
             if self.on_time.isChecked():
                 pphour = .5
             if not self.on_time.isChecked():
@@ -80,7 +133,7 @@ class MainWindow(QMainWindow):
                 ttprint = int(ttprint.replace("m", ""))
 
             total_price = self.calc_price(pphour, ttprint, wtprint, self.ppkilo)
-            print(f"Print weighs {wtprint} g, will take {ttprint} minutes, and will cost {(float(self.ppkilo)/1000) * wtprint} to print")
+            print(f"Print weighs {wtprint} g, will take {ttprint} minutes, and will cost {(float(self.ppkilo)/1000) * wtprint} in filament to print")
             self.banner.setText(f"Print will cost ${total_price}")
     def calc_price(self, hour, time, weight, kilo):
         print(f"{Qt.CheckState.Checked.value}")
@@ -92,7 +145,33 @@ class MainWindow(QMainWindow):
 
         return round(total_price, 2)
 
+def app_setup(version):
+    print(f"Starting FCC version {version}")
+
+    system = sys.platform
+
+    config_dir = os.path.expanduser("~")
+
+    match system:
+        case 'win32':
+            print("Appears we are running on a Windows Machine")
+            config_folder = os.path.join(config_dir, "AppData", "filcalc")
+        case 'darwin':
+            print("Appears we are running on a Mac")
+            config_folder = os.path.join(config_dir, ".config", "filcalc")
+        case 'linux':
+            print("Appears we are running on Linux")
+            config_folder = os.path.join(config_dir, ".config", "filcalc")
+            print(f"Setting config_folder as {config_folder}")
+
+    if not os.path.exists(config_folder):
+        print(f"\t- '{config_folder}' does not appear to exist. Making one.")
+        os.mkdir(config_folder)
+
+
 if __name__ == "__main__":
+    VERSION = "0.1"
+    app_setup(VERSION)
     app = QApplication(sys.argv)
     w = MainWindow()
     w.show()
