@@ -1,6 +1,6 @@
 import sys
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QApplication, QMainWindow, QLabel, QComboBox, QLineEdit, QCheckBox, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QFormLayout
+from PyQt6.QtWidgets import QApplication, QDialog, QMainWindow, QLabel, QComboBox, QLineEdit, QCheckBox, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QFormLayout
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -33,6 +33,7 @@ class MainWindow(QMainWindow):
         print_time_label = QLabel("&Time to print:")
         self.print_time_entry = QLineEdit()
         print_time_label.setBuddy(self.print_time_entry)
+        self.print_time_entry.returnPressed.connect(self.calculate_options)
         form.addRow(print_time_label, self.print_time_entry)
 
         on_time_label = QLabel("Printed at work/sleep (&F)")
@@ -56,7 +57,7 @@ class MainWindow(QMainWindow):
         print(f"Set price: {cost} per kg ({ float(cost) / 1000 } per g)")
 
     def calculate_options(self):
-        wtprint = int(self.print_weight_entry.text())
+        wtprint = float(self.print_weight_entry.text())
         ttprint = self.print_time_entry.text()
         if wtprint == "":
             print("Needs Weight!")
