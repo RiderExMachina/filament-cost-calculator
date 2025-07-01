@@ -93,6 +93,7 @@ class MainWindow(QMainWindow):
         print_time_label = QLabel("&Time to print:")
         self.print_time_entry = QLineEdit()
         print_time_label.setBuddy(self.print_time_entry)
+        self.print_time_entry.returnPressed.connect(self.calculate_options)
         form.addRow(print_time_label, self.print_time_entry)
 
         on_time_label = QLabel("Printed at work/sleep (&F)")
