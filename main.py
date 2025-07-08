@@ -1,5 +1,5 @@
-import json, os, shutil, sys
-from PyQt6.QtCore import Qt
+import json, os, shutil, sys, time
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QAction, QKeySequence
 from PyQt6.QtWidgets import QApplication, QMainWindow, QDialog, QLabel, QComboBox, QTextEdit, QLineEdit, QCheckBox, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QFormLayout, QToolBar
 
@@ -7,11 +7,17 @@ class SettingsWindow(QDialog):
     def __init__(self):
         super().__init__()
 
+        self.timer = QTimer()
+        self.timer.setSingleShot(True)
+        self.timer.setInterval(5000)
+        self.timer.timeout.connect(self.clear_message)
 
         layout = QVBoxLayout()
         price_form = QFormLayout()
         hourly_cost_form = QFormLayout()
         btn_box = QHBoxLayout()
+
+        self.feedback = QLabel()
 
         price_label = QLabel("&Prices per Kilo:")
         self.price_list = QTextEdit()
@@ -35,6 +41,7 @@ class SettingsWindow(QDialog):
 
         layout.addLayout(price_form)
         layout.addLayout(hourly_cost_form)
+        layout.addWidget(self.feedback)
         layout.addLayout(btn_box)
 
         self.pull_existing()
@@ -50,7 +57,11 @@ class SettingsWindow(QDialog):
         data["prem-hrly"] = pcph
         data["std-hrly"]  = ocph
 
-        save_info(data)
+        result = save_info(data)
+        if result:
+            if not self.timer.isActive():
+                self.feedback.setText("Saved!")
+                self.timer.start()
 
     def pull_existing(self):
         data = load_info()
@@ -59,6 +70,9 @@ class SettingsWindow(QDialog):
         self.price_list.setText(kilo_prices.replace(",", "\n"))
         self.pcph_entry.setText(str(data["prem-hrly"]))
         self.ocph_entry.setText(str(data["std-hrly"]))
+
+    def clear_message(self):
+        self.feedback.clear()
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -222,6 +236,7 @@ def save_info(data):
 
     shutil.copy(settings_file+".new", settings_file)
     print("Save successful!")
+    return True
 
 if __name__ == "__main__":
     VERSION = "0.1"
