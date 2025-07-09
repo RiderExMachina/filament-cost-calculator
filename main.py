@@ -78,6 +78,22 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        menu_bar = self.menuBar()
+
+        settings_button = QAction("Settings", self)
+        settings_button.setStatusTip("Manage Settings")
+        settings_button.triggered.connect(self.show_settings)
+        menu_bar.addAction(settings_button)
+
+        refresh_button = QAction("Refresh", self)
+        refresh_button.setStatusTip("Refresh information")
+        refresh_button.triggered.connect(self.refresh)
+        menu_bar.addAction(refresh_button)
+
+        self.__create_ui__()
+
+
+    def __create_ui__(self):
         self.data = load_info()
 
         self.setWindowTitle("Filament Cost Calculator")
@@ -126,12 +142,8 @@ class MainWindow(QMainWindow):
         widget.setLayout(layout)
         self.setCentralWidget(widget)
 
-        menu_bar = self.menuBar()
-
-        settings_button = QAction("Settings", self)
-        settings_button.setStatusTip("Manage Settings")
-        settings_button.triggered.connect(self.show_settings)
-        menu_bar.addAction(settings_button)
+    def refresh(self):
+        self.__create_ui__()
 
     def show_settings(self):
         dlg = SettingsWindow().exec()
