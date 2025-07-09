@@ -1,6 +1,6 @@
 import json, os, shutil, sys, time
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QAction, QKeySequence
+from PyQt6.QtCore import Qt, QTimer, QRegularExpression
+from PyQt6.QtGui import QAction, QKeySequence, QDoubleValidator, QRegularExpressionValidator
 from PyQt6.QtWidgets import QApplication, QMainWindow, QDialog, QLabel, QComboBox, QTextEdit, QLineEdit, QCheckBox, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QFormLayout, QToolBar
 
 class SettingsWindow(QDialog):
@@ -9,7 +9,7 @@ class SettingsWindow(QDialog):
 
         self.timer = QTimer()
         self.timer.setSingleShot(True)
-        self.timer.setInterval(5000)
+        self.timer.setInterval(4000)
         self.timer.timeout.connect(self.clear_message)
 
         layout = QVBoxLayout()
@@ -26,10 +26,12 @@ class SettingsWindow(QDialog):
 
         pcph_label = QLabel("&Premium Cost")
         self.pcph_entry = QLineEdit()
+        self.pcph_entry.setValidator(QDoubleValidator())
         pcph_label.setBuddy(self.pcph_entry)
 
         ocph_label = QLabel("&Offtime Cost")
         self.ocph_entry = QLineEdit()
+        self.ocph_entry.setValidator(QDoubleValidator())
         ocph_label.setBuddy(self.ocph_entry)
 
         hourly_cost_form.addRow(pcph_label, self.pcph_entry)
@@ -117,19 +119,52 @@ class MainWindow(QMainWindow):
 
         print_weight_label = QLabel("&Grams used in print:")
         self.print_weight_entry = QLineEdit()
+        self.print_weight_entry.setValidator(QDoubleValidator())
         print_weight_label.setBuddy(self.print_weight_entry)
         form.addRow(print_weight_label, self.print_weight_entry)
 
         print_time_label = QLabel("&Time to print:")
         self.print_time_entry = QLineEdit()
+        print_time_validator = QRegularExpressionValidator(
+                QRegularExpression(r"\d+[HhMm]\d+[Mm]"), self.print_time_entry
+            )
+        self.print_time_entry.setValidator(print_time_validator)
         print_time_label.setBuddy(self.print_time_entry)
         self.print_time_entry.returnPressed.connect(self.calculate_options)
         form.addRow(print_time_label, self.print_time_entry)
+
+        extra_label = QLabel("Extras:")
+        extra_label_font = extra_label.font()
+        extra_label_font.setPointSize(14)
+        extra_label.setFont(extra_label_font)
+        form.addRow(extra_label)
 
         on_time_label = QLabel("Printed at work/sleep (&F)")
         self.on_time = QCheckBox()
         on_time_label.setBuddy(self.on_time)
         form.addRow(on_time_label, self.on_time)
+
+
+        devel_time_label = QLabel("&Development Time:")
+        self.devel_time_entry = QLineEdit()
+        devel_time_validator = QRegularExpressionValidator(
+                QRegularExpression(r"\d+[HhMm]\d+[Mm]"), self.devel_time_entry
+            )
+        self.devel_time_entry.setValidator(devel_time_validator)
+        devel_time_label.setBuddy(self.devel_time_entry)
+        self.devel_time_entry.returnPressed.connect(self.calculate_options)
+        form.addRow(devel_time_label, self.devel_time_entry)
+
+        assembly_time_label = QLabel("&Assembly Time (if applicable):")
+        self.assembly_time_entry = QLineEdit()
+        assembly_time_validator = QRegularExpressionValidator(
+                QRegularExpression(r"\d+[HhMm]\d+[Mm]"), self.assembly_time_entry
+            )
+        self.assembly_time_entry.setValidator(assembly_time_validator)
+        devel_time_label.setBuddy(self.devel_time_entry)
+        assembly_time_label.setBuddy(self.assembly_time_entry)
+        self.assembly_time_entry.returnPressed.connect(self.calculate_options)
+        form.addRow(assembly_time_label, self.assembly_time_entry)
 
         calculate_button = QPushButton("Calculate")
         calculate_button.clicked.connect(self.calculate_options)
@@ -143,6 +178,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(widget)
 
     def refresh(self):
+        print("Refreshing window")
         self.__create_ui__()
 
     def show_settings(self):
@@ -154,12 +190,15 @@ class MainWindow(QMainWindow):
 
     def calculate_options(self):
         good = False
-        wtprint = self.print_weight_entry.text()
-        ttprint = self.print_time_entry.text()
+        wtprint = self.print_weight_entry.text().lower()
+        ttprint = self.print_time_entry.text().lower()
+        dev_time = self.devel_time_entry.text().lower()
+        assemble = self.assembly_time_entry.text().lower()
+
         if wtprint == "":
             self.banner.setText("Needs Weight!")
             print("Needs Weight!")
-        if ttprint == "":
+        elif ttprint == "":
             self.banner.setText("Needs Time!")
             print("Needs Time!")
             good = False
@@ -167,28 +206,32 @@ class MainWindow(QMainWindow):
             wtprint = float(wtprint)
             good = True
 
+        if dev_time != "":
+            dev_time = split_time(dev_time)
+            dev_cost = (dev_time / 60) * float(self.data["prem-hrly"])
+            print(f"\t- Development costs: ${round(dev_cost, 2)}")
+        if assemble != "":
+            assemble = split_time(assemble)
+            assm_cost = (assemble / 60) * float(self.data["prem-hrly"])
+            print(f"\t- Estimated assembly cost: ${round(assm_cost, 2)}")
+        elif dev_time == "":
+            dev_cost = 0
+        elif assemble == "":
+            assm_cost = 0
+
         if good:
             if self.on_time.isChecked():
                 pphour = float(self.data["std-hrly"])
             if not self.on_time.isChecked():
                 pphour = float(self.data["prem-hrly"])
-            if "h" in ttprint:
-                hours = int(ttprint.split("h")[0]) * 60
-                minutes = ttprint.split("h")[1].replace("m", "")
-                if minutes != "":
-                    minutes = int(minutes)
-                else:
-                    minutes = 0
-                ttprint = hours + minutes
-            else:
-                ttprint = int(ttprint.replace("m", ""))
+
+            ttprint = split_time(ttprint)
 
             total_price = self.calc_price(pphour, ttprint, wtprint, self.ppkilo)
             print(f"Print weighs {wtprint} g, will take {ttprint} minutes, and will cost {(float(self.ppkilo)/1000) * wtprint} in filament to print")
             print(f"Print will cost {pphour * (ttprint / 60)} at {pphour}/hour")
             self.banner.setText(f"Print will cost ${total_price}")
     def calc_price(self, hour, time, weight, kilo):
-        print(f"{Qt.CheckState.Checked.value}")
         hour_price = hour * time/60
         print(f"Price per hour: {hour_price}")
         weight_price = (float(kilo)/1000) * weight
@@ -196,6 +239,20 @@ class MainWindow(QMainWindow):
         total_price = hour_price + weight_price
 
         return round(total_price, 2)
+
+def split_time(time_data):
+    if "h" in time_data:
+        hours = int(time_data.split("h")[0]) * 60
+        minutes = time_data.split("h")[1].replace("m", "")
+        if minutes != "":
+            minutes = int(minutes)
+        else:
+            minutes = 0
+        total_time = hours + minutes
+    else:
+        total_time = int(time_data.replace("m", ""))
+
+    return total_time
 
 def config_info():
     system = sys.platform
@@ -251,7 +308,7 @@ def save_info(data):
     return True
 
 if __name__ == "__main__":
-    VERSION = "0.1"
+    VERSION = "0.5"
     print(f"Starting FCC version {VERSION}")
     app = QApplication(sys.argv)
     w = MainWindow()
