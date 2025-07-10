@@ -226,9 +226,9 @@ class MainWindow(QMainWindow):
             assm_cost = (assemble / 60) * float(self.data["prem-hrly"])
             print(f"\t- Estimated assembly cost: ${round(assm_cost, 2)}")
             self.assm_banner.setText(f"Assembly Cost: ${round(assm_cost, 2)}")
-        elif dev_time == "":
+        if dev_time == "":
             dev_cost = 0
-        elif assemble == "":
+        if assemble == "":
             assm_cost = 0
 
         if good:
@@ -246,7 +246,7 @@ class MainWindow(QMainWindow):
             self.banner.setText(f"Print will cost ${total_price}")
 
             sale_price = nearest_five(total_price)
-            breakeven = (total_price + total_extra_cost) / sale_price
+            breakeven = (total_price + total_extra_cost) / (sale_price - total_price)
             print(f"\t- You would need to sell {breakeven} at ${sale_price} to break even.")
             self.breakdown.setText(f"You would need to sell {round(breakeven)} at ${sale_price} to break even.")
     def calc_price(self, hour, time, weight, kilo):
