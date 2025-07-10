@@ -220,12 +220,12 @@ class MainWindow(QMainWindow):
             dev_time = split_time(dev_time)
             dev_cost = (dev_time / 60) * float(self.data["prem-hrly"])
             print(f"\t- Development costs: ${round(dev_cost, 2)}")
-            self.dev_banner.setText(f"Development cost: ${round(dev_cost, 2)}")
+            self.dev_banner.setText(f"Development cost: \n${round(dev_cost, 2)}")
         if assemble != "":
             assemble = split_time(assemble)
             assm_cost = (assemble / 60) * float(self.data["prem-hrly"])
             print(f"\t- Estimated assembly cost: ${round(assm_cost, 2)}")
-            self.assm_banner.setText(f"Assembly Cost: ${round(assm_cost, 2)}")
+            self.assm_banner.setText(f"Assembly Cost: \n${round(assm_cost, 2)}")
         if dev_time == "":
             dev_cost = 0
         if assemble == "":
