@@ -169,9 +169,19 @@ class MainWindow(QMainWindow):
         calculate_button = QPushButton("Calculate")
         calculate_button.clicked.connect(self.calculate_options)
 
+        extras_layout = QHBoxLayout()
+        self.dev_banner = QLabel()
+        self.assm_banner = QLabel()
+        extras_layout.addWidget(self.dev_banner)
+        extras_layout.addWidget(self.assm_banner)
+
+        self.breakdown = QLabel()
+
+
         layout.addLayout(form)
         layout.addWidget(self.banner)
-
+        layout.addLayout(extras_layout)
+        layout.addWidget(self.breakdown)
         layout.addWidget(calculate_button)
 
         widget.setLayout(layout)
@@ -210,16 +220,19 @@ class MainWindow(QMainWindow):
             dev_time = split_time(dev_time)
             dev_cost = (dev_time / 60) * float(self.data["prem-hrly"])
             print(f"\t- Development costs: ${round(dev_cost, 2)}")
+            self.dev_banner.setText(f"Development cost: \n${round(dev_cost, 2)}")
         if assemble != "":
             assemble = split_time(assemble)
             assm_cost = (assemble / 60) * float(self.data["prem-hrly"])
             print(f"\t- Estimated assembly cost: ${round(assm_cost, 2)}")
-        elif dev_time == "":
+            self.assm_banner.setText(f"Assembly Cost: \n${round(assm_cost, 2)}")
+        if dev_time == "":
             dev_cost = 0
-        elif assemble == "":
+        if assemble == "":
             assm_cost = 0
 
         if good:
+            total_extra_cost = dev_cost + assm_cost
             if self.on_time.isChecked():
                 pphour = float(self.data["std-hrly"])
             if not self.on_time.isChecked():
@@ -231,6 +244,11 @@ class MainWindow(QMainWindow):
             print(f"Print weighs {wtprint} g, will take {ttprint} minutes, and will cost {(float(self.ppkilo)/1000) * wtprint} in filament to print")
             print(f"Print will cost {pphour * (ttprint / 60)} at {pphour}/hour")
             self.banner.setText(f"Print will cost ${total_price}")
+
+            sale_price = nearest_five(total_price)
+            breakeven = (total_price + total_extra_cost) / (sale_price - total_price)
+            print(f"\t- You would need to sell {breakeven} at ${sale_price} to break even.")
+            self.breakdown.setText(f"You would need to sell {round(breakeven)} at ${sale_price} to break even.")
     def calc_price(self, hour, time, weight, kilo):
         hour_price = hour * time/60
         print(f"Price per hour: {hour_price}")
@@ -253,6 +271,12 @@ def split_time(time_data):
         total_time = int(time_data.replace("m", ""))
 
     return total_time
+
+def nearest_five(num1):
+    num2 = 5
+    while num2 < num1:
+        num2 += 5
+    return num2
 
 def config_info():
     system = sys.platform
