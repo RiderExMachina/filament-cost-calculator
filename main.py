@@ -193,6 +193,7 @@ class MainWindow(QMainWindow):
 
     def show_settings(self):
         dlg = SettingsWindow().exec()
+        self.refresh()
 
     def filament_cost(self, cost):
         self.ppkilo = float(cost)
