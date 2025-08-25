@@ -1,7 +1,7 @@
 import json, os, shutil, sys, time
 from PyQt6.QtCore import Qt, QTimer, QRegularExpression
-from PyQt6.QtGui import QAction, QKeySequence, QDoubleValidator, QRegularExpressionValidator
-from PyQt6.QtWidgets import QApplication, QMainWindow, QDialog, QLabel, QComboBox, QTextEdit, QLineEdit, QCheckBox, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QFormLayout, QToolBar
+from PyQt6.QtGui import QAction, QKeySequence, QIntValidator, QDoubleValidator, QRegularExpressionValidator
+from PyQt6.QtWidgets import QApplication, QMainWindow, QDialog, QLabel, QScrollArea, QComboBox, QTextEdit, QLineEdit, QCheckBox, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QFormLayout, QToolBar
 
 class SettingsWindow(QDialog):
     def __init__(self):
@@ -9,17 +9,18 @@ class SettingsWindow(QDialog):
 
         self.timer = QTimer()
         self.timer.setSingleShot(True)
-        self.timer.setInterval(4000)
+        self.timer.setInterval(2500)
         self.timer.timeout.connect(self.clear_message)
 
         layout = QVBoxLayout()
         price_form = QFormLayout()
         hourly_cost_form = QFormLayout()
+        printer_options_form = QFormLayout()
         btn_box = QHBoxLayout()
 
         self.feedback = QLabel()
 
-        price_label = QLabel("&Prices per Kilo:")
+        price_label = QLabel("Prices per &Kilo:")
         self.price_list = QTextEdit()
         price_label.setBuddy(self.price_list)
         price_form.addRow(price_label, self.price_list)
@@ -37,12 +38,27 @@ class SettingsWindow(QDialog):
         hourly_cost_form.addRow(pcph_label, self.pcph_entry)
         hourly_cost_form.addRow(ocph_label, self.ocph_entry)
 
+        num_printers_label = QLabel("&Number of Printers:")
+        self.num_printers = QLineEdit()
+        self.num_printers.setValidator(QIntValidator())
+        num_printers_label.setBuddy(self.num_printers)
+
+        printer_options_form.addRow(num_printers_label, self.num_printers)
+
+
         save_button = QPushButton("Save")
         save_button.clicked.connect(self.gather_data)
+        save_and_quit = QPushButton("Save and Close")
+        save_and_quit.clicked.connect(self.saq)
+        cancel_button = QPushButton("Cancel")
+        cancel_button.clicked.connect(self.close)
         btn_box.addWidget(save_button)
+        btn_box.addWidget(save_and_quit)
+        btn_box.addWidget(cancel_button)
 
         layout.addLayout(price_form)
         layout.addLayout(hourly_cost_form)
+        layout.addLayout(printer_options_form)
         layout.addWidget(self.feedback)
         layout.addLayout(btn_box)
 
@@ -54,16 +70,22 @@ class SettingsWindow(QDialog):
         kilo_prices = self.price_list.toPlainText().split("\n")
         pcph = self.pcph_entry.text()
         ocph = self.ocph_entry.text()
+        printers = self.num_printers.text()
 
         data["kilo-cost"] = kilo_prices
         data["prem-hrly"] = pcph
         data["std-hrly"]  = ocph
+        data["printers"] = printers
 
         result = save_info(data)
         if result:
             if not self.timer.isActive():
                 self.feedback.setText("Saved!")
                 self.timer.start()
+
+    def saq(self):
+        self.gather_data()
+        self.close()
 
     def pull_existing(self):
         data = load_info()
@@ -72,6 +94,12 @@ class SettingsWindow(QDialog):
         self.price_list.setText(kilo_prices.replace(",", "\n"))
         self.pcph_entry.setText(str(data["prem-hrly"]))
         self.ocph_entry.setText(str(data["std-hrly"]))
+
+        try:
+            ## Added in a later revision of the program. May be able to remove in the future.
+            self.num_printers.setText(str(data["printers"]))
+        except KeyError:
+            self.num_printers.setText("1")
 
     def clear_message(self):
         self.feedback.clear()
@@ -97,6 +125,9 @@ class MainWindow(QMainWindow):
 
     def __create_ui__(self):
         self.data = load_info()
+        self.printers = int(self.data["printers"])
+        self.kilo_cost = self.data["kilo-cost"]
+
 
         self.setWindowTitle("Filament Cost Calculator")
         widget = QWidget()
@@ -112,9 +143,9 @@ class MainWindow(QMainWindow):
 
         filament_cost_label = QLabel("Filament Cost per kg:")
         self.filament_cost_entry = QComboBox()
-        self.filament_cost_entry.addItems(self.data["kilo-cost"])
-        self.ppkilo = float(self.data["kilo-cost"][0])
-        self.filament_cost_entry.currentTextChanged.connect(self.filament_cost)
+        self.filament_cost_entry.addItems(self.kilo_cost)
+        self.ppkilo = float(self.kilo_cost[0])
+        self.filament_cost_entry.currentIndexChanged.connect(self.filament_cost)
         form.addRow(filament_cost_label, self.filament_cost_entry)
 
         print_weight_label = QLabel("&Grams used in print:")
@@ -142,7 +173,13 @@ class MainWindow(QMainWindow):
         on_time_label = QLabel("Printed at work/sleep (&F)")
         self.on_time = QCheckBox()
         on_time_label.setBuddy(self.on_time)
+        account_printer_label = QLabel("A&ccount for printers in calculation")
+        self.account_printers = QCheckBox()
+        self.account_printers.setChecked(True)
+        account_printer_label.setBuddy(self.account_printers)
+
         form.addRow(on_time_label, self.on_time)
+        form.addRow(account_printer_label, self.account_printers)
 
 
         devel_time_label = QLabel("&Development Time:")
@@ -189,14 +226,21 @@ class MainWindow(QMainWindow):
 
     def refresh(self):
         print("Refreshing window")
+        temp_weight = self.print_weight_entry.text()
+        temp_time = self.print_time_entry.text()
         self.__create_ui__()
+
+        if temp_weight != "":
+            self.print_weight_entry.setText(temp_weight)
+        if temp_time != "":
+            self.print_time_entry.setText(temp_time)
 
     def show_settings(self):
         dlg = SettingsWindow().exec()
 
     def filament_cost(self, cost):
-        self.ppkilo = float(cost)
-        print(f"Set price: {cost} per kg ({ float(cost) / 1000 } per g)")
+        self.ppkilo = float(self.data["kilo-cost"][cost])
+        print(f"Set price: {self.ppkilo} per kg ({ self.ppkilo / 1000 } per g)")
 
     def calculate_options(self):
         good = False
@@ -247,10 +291,17 @@ class MainWindow(QMainWindow):
 
             sale_price = nearest_five(total_price)
             breakeven = (total_price + total_extra_cost) / (sale_price - total_price)
+            if breakeven < 1:
+                breakeven = 1
             print(f"\t- You would need to sell {breakeven} at ${sale_price} to break even.")
             self.breakdown.setText(f"You would need to sell {round(breakeven)} at ${sale_price} to break even.")
     def calc_price(self, hour, time, weight, kilo):
+        ## Building out
+        account_for_printers = self.account_printers.isChecked()
         hour_price = hour * time/60
+        if account_for_printers:
+            printers = self.printers
+            hour_price = hour_price / printers
         print(f"Price per hour: {hour_price}")
         weight_price = (float(kilo)/1000) * weight
         print(f"Price for print: {weight_price}")
@@ -316,7 +367,8 @@ def load_info():
                     "13.99"
                 ],
                 "prem-hrly": 2.5,
-                "std-hrly": 0.5
+                "std-hrly": 0.5,
+                "printers": 1,
             }
     return data
 
